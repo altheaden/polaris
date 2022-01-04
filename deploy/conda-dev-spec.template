@@ -28,6 +28,7 @@ numpy
 {% if supports_otps %}
 otps={{ otps }}
 {% endif %}
+parsl>=2023.1.30
 progressbar2
 pyamg>=4.2.2
 pyproj
