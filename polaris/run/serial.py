@@ -475,6 +475,7 @@ def _run_step(test_case, step, new_log_file, available_resources,
         step_logger.info('')
         log_method_call(method=step.runtime_setup, logger=step_logger)
         step_logger.info('')
+
         step.runtime_setup()
 
         if step.args is not None:
