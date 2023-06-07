@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 
+import polaris.run.parallel as run_parallel
 import polaris.run.serial as run_serial
 from polaris import cache, list, setup, suite
 from polaris.version import __version__
@@ -44,7 +45,8 @@ The available polaris commands are:
     commands = {'list': list.main,
                 'setup': setup.main,
                 'suite': suite.main,
-                'serial': run_serial.main}
+                'serial': run_serial.main,
+                'run': run_parallel.main}
 
     # only allow the "polaris cache" command if we're on Anvil or Chrysalis
     allow_cache = ('POLARIS_MACHINE' in os.environ and
