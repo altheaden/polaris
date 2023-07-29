@@ -8,7 +8,7 @@ from polaris.setup import setup_cases
 
 def setup_suite(component, suite_name, work_dir, config_file=None,
                 machine=None, baseline_dir=None, component_path=None,
-                copy_executable=False):
+                copy_executable=False, clobber=False):
     """
     Set up a test suite
 
@@ -53,7 +53,7 @@ def setup_suite(component, suite_name, work_dir, config_file=None,
     setup_cases(work_dir, tests, config_file=config_file, machine=machine,
                 baseline_dir=baseline_dir, component_path=component_path,
                 suite_name=suite_name, cached=cached,
-                copy_executable=copy_executable)
+                copy_executable=copy_executable, clobber=clobber)
 
 
 def main():
@@ -86,13 +86,18 @@ def main():
                         action="store_true",
                         help="If the model executable should be copied to the "
                              "work directory.")
+    parser.add_argument("--clobber", dest="clobber", action="store_true",
+                        help="The setup will clobber any existing files in the"
+                        " given work directory. Only possible if work_dir has "
+                        "been specified.")
+
     args = parser.parse_args(sys.argv[2:])
 
     setup_suite(component=args.component, suite_name=args.test_suite,
                 work_dir=args.work_dir, config_file=args.config_file,
                 machine=args.machine, baseline_dir=args.baseline_dir,
                 component_path=args.component_path,
-                copy_executable=args.copy_executable)
+                copy_executable=args.copy_executable, clobber=args.clobber)
 
 
 def _parse_suite(text):

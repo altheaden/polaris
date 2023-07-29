@@ -1,6 +1,7 @@
 import argparse
 import os
 import pickle
+import shutil
 import sys
 import warnings
 from typing import Dict, List
@@ -16,7 +17,8 @@ from polaris.job import write_job_script
 
 def setup_cases(work_dir, tests=None, numbers=None, config_file=None,
                 machine=None, baseline_dir=None, component_path=None,
-                suite_name='custom', cached=None, copy_executable=False):
+                suite_name='custom', cached=None, copy_executable=False,
+                clobber=False):
     """
     Set up one or more test cases
 
@@ -73,6 +75,7 @@ def setup_cases(work_dir, tests=None, numbers=None, config_file=None,
     if work_dir is None:
         print('Warning: no base work directory was provided so setting up in '
               'the current directory.')
+        clobber = False
         work_dir = os.getcwd()
     work_dir = os.path.abspath(work_dir)
 
@@ -98,6 +101,12 @@ def setup_cases(work_dir, tests=None, numbers=None, config_file=None,
 
     basic_config = _get_basic_config(config_file, machine, component_path,
                                      component)
+
+    if clobber:
+        try:
+            shutil.rmtree(work_dir)
+        except OSError:
+            pass
 
     provenance.write(work_dir, test_cases, config=basic_config)
 
@@ -333,6 +342,10 @@ def main():
                         action="store_true",
                         help="If the model executable should be copied to the "
                              "work directory.")
+    parser.add_argument("--clobber", dest="clobber", action="store_true",
+                        help="The setup will clobber any existing files in the"
+                        " given work directory. Only possible if work_dir has "
+                        "been specified.")
 
     args = parser.parse_args(sys.argv[2:])
     cached = None
@@ -346,7 +359,8 @@ def main():
                 config_file=args.config_file, machine=args.machine,
                 work_dir=args.work_dir, baseline_dir=args.baseline_dir,
                 component_path=args.component_path, suite_name=args.suite_name,
-                cached=cached, copy_executable=args.copy_executable)
+                cached=cached, copy_executable=args.copy_executable,
+                clobber=args.clobber)
 
 
 def _get_required_cores(test_cases):
