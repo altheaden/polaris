@@ -41,6 +41,7 @@ class Init(Step):
         for filename in ['culled_mesh.nc', 'initial_state.nc',
                          'culled_graph.info']:
             self.add_output_file(filename=filename)
+            pass
 
     def run(self):
         """

@@ -29,7 +29,6 @@ from polaris.run import (
 )
 
 
-# TODO: These default kwarg values are placeholders only
 def run_tests(suite_name, partition=None, nodes=1, walltime='01:00:00'):
     """
     Run the given test suite in task parallel
@@ -56,7 +55,7 @@ def run_tests(suite_name, partition=None, nodes=1, walltime='01:00:00'):
 
     parsl.clear()
     executor = _create_executor()
-    parsl.load(executor)  # returns Parsl data flow kernel
+    dfk = parsl.load(executor)  # returns Parsl data flow kernel
 
     with LoggingContext(suite_name) as stdout_logger:
 
@@ -67,43 +66,55 @@ def run_tests(suite_name, partition=None, nodes=1, walltime='01:00:00'):
         suite_start = time.time()
 
         app_futures = _setup_apps(test_cases, available_resources)
-        print("Parsl setup complete")  # TODO: debug
 
-        test_times = dict.fromkeys(app_futures, None)
+        # test_times = dict.fromkeys(app_futures, None)
 
-        all_complete = False
-        while not all_complete:
-            all_complete = True
-            for test_name, app in app_futures.items():
-                if app is not None:
-                    if app.done():
-                        try:
-                            test_time = app.result()
-                            # TODO: debug
-                            print(f'{test_name} finished.')
-                        except Exception:
-                            # TODO: debug
-                            print(f'{test_name} failed.')
-                            test_time = None
-                        app_futures[test_name] = None
-                        test_times[test_name] = test_time
-                    else:
-                        all_complete = False
+        # all_complete = False
+        # while not all_complete:
+        #     all_complete = True
+        #     for app_name, app in app_futures.items():
+        #         if app is not None:
+        #             if app.done():
+        #                 try:
+        #                     test_time = app.result()
+        #                     # TODO: debug
+        #                     print(f'{app_name} finished.')
+        #                 except Exception:
+        #                     # TODO: debug
+        #                     print(f'{app_name} failed.')
+        #                     test_time = None
+        #                 app_futures[app_name] = None
+        #                 test_times[app_name] = test_time
+        #             else:
+        #                 all_complete = False
+
+        dfk.wait_for_current_tasks()
 
         # execution complete
         suite_time = time.time() - suite_start
         # TODO: debug
         print(f"Ran all test cases in {suite_time:.2f} seconds:")
 
+        # rt_sum = 0
+        # for test_name, test_time in test_times.items():
+        #     if test_time is not None:
+        #         rt_sum += test_time
+        #         # TODO: debug
+        #         print(f'\t{test_name} completed in {test_time:.2f} seconds.')
+        #     else:
+        #         # TODO: debug
+        #         print(f'\t{test_name} failed.')
+
         rt_sum = 0
-        for test_name, test_time in test_times.items():
-            if test_time is not None:
-                rt_sum += test_time
-                # TODO: debug
-                print(f'\t{test_name} completed in {test_time:.2f} seconds.')
-            else:
-                # TODO: debug
-                print(f'\t{test_name} failed.')
+        for test_name, steps in app_futures.items():
+            print(f'{test_name}')
+            for step_name, app in steps.items():
+                try:
+                    step_time = app.result()
+                    rt_sum += step_time
+                    print(f'  * step: {step_name} passed in {step_time:.2f}s')
+                except Exception:
+                    print(f'  * step: {step_name} failed')
 
         print(f'Cumulative test test_time: {rt_sum:.2f}')
 
@@ -223,10 +234,10 @@ def _run_step_app(test_case, step, parallel_args, inputs=[], outputs=[]):
         logger.info(f'running: {step.name} in {step.work_dir}')  # TODO: debug
 
         for file in inputs:
-            logger.info(f'\tinput file: {file.filepath}')  # TODO: debug
+            logger.info(f' <- input file: {file.filepath}')  # TODO: debug
 
         for file in outputs:
-            logger.info(f'\toutput file: {file.filepath}')  # TODO: debug
+            logger.info(f' -> output file: {file.filepath}')  # TODO: debug
 
         if step.args is not None:
             _pre_run(test_case=test_case, step=step)
@@ -250,27 +261,11 @@ def _pre_run(test_case, step):
 def _run_step(parallel_args=[], work_dir=''):
     parallel_args = ' '.join(parallel_args)
     parallel_args = f'cd {work_dir} && {parallel_args}'
-    subprocess.run(args=parallel_args, check=True, shell=True)  # TODO: debug
+    subprocess.run(args=parallel_args, check=True, shell=True)
 
 
 def _post_run(test_case=None, step=None):
     pickle_step_after_run(test_case, step)
-
-    # missing_files = list()
-    # for output_file in step.outputs:
-    #     if not os.path.exists(output_file):
-    #         missing_files.append(output_file)
-
-    # if len(missing_files) > 0:
-    #     # We want to indicate that the step failed by removing the pickle
-    #     try:
-    #         os.remove('step_after_run.pickle')
-    #     except FileNotFoundError:
-    #         pass
-    #     raise OSError(
-    #         f'output file(s) missing in step {step.name} of '
-    #         f'{step.component.name}/{step.test_group.name}/'
-    #         f'{step.test_case.subdir}: {missing_files}')
 
 
 def _setup_apps(test_cases, available_resources):
@@ -288,28 +283,20 @@ def _setup_apps(test_cases, available_resources):
     """
 
     # Constrain resources before we run anything
-    print('begin constraining resources')  # TODO: debug
     for test_name, test_case in test_cases.items():
-        print(f'* {test_name}')  # TODO: debug
         for step_name, step in test_case.steps.items():
-            print(f'\t{step_name}')  # TODO: debug
             step.constrain_resources(available_resources)
-    print('completed constraining resources\n')  # TODO: debug
 
     data_futures: dict[str, File] = dict()
-    app_futures: dict[str, AppFuture] = dict()
+    app_futures: dict[str, dict[str, AppFuture]] = dict()
 
     for test_name, test_case in test_cases.items():
-        print(f'beginning {test_name} setup\n')  # TODO: debug
+        app_futures[test_name] = dict()
+
         for step_name, step in test_case.steps.items():
-
-            print(f'\tbeginning {step_name} setup')  # TODO: debug
-
             if step.args is not None:
-                print('DEBUG: command line step')  # TODO: debug
                 args = step.args
             else:
-                print('DEBUG: regular step')  # TODO: debug
                 args = ['polaris', 'serial', '--steps', step_name,
                         '--step_is_subprocess']
             parallel_args = get_parallel_command(
@@ -333,33 +320,39 @@ def _setup_apps(test_cases, available_resources):
                 #   be found by any dependencies
                 data_futures[file.filepath] = file
 
-            debug_reference_name = f'{test_name}/{step_name}'
+            app_futures[test_name][step_name] = app
 
-            app_futures[debug_reference_name] = app
-
-            print(f'\tcompleted {step_name} setup\n')  # TODO: debug
-        print(f'completed {test_name} setup\n')  # TODO: debug
     return app_futures
 
 
 def _get_app_dependencies(step, data_futures):
     app_inputs: list[File] = list()
+    missing_files: list[str] = list()
     for filename in step.inputs:
         if filename in data_futures:
             # if this input file is dependent on another app, its data
             #   future will already exist
             file = data_futures[filename]
         else:
-            # otherwise, create a new data future for it
-            file = File(filename)
+            # otherwise, check if the file exists, but is not a dependency of a
+            #   previous step (e.g., component model files), and make a new
+            #   data future for it
+            if os.path.exists(filename):
+                file = File(filename)
+            else:
+                missing_files.append(filename)
         app_inputs.append(file)
-        print(f'\t-> input file: {file.filepath}')  # TODO: debug
+
+    if len(missing_files) > 0:
+        raise OSError(
+            f'input file(s) missing in step {step.name} of '
+            f'{step.component.name}/{step.test_group.name}/'
+            f'{step.test_case.subdir}: {missing_files}')
 
     app_outputs: list[File] = list()
     for filename in step.outputs:
         file = File(filename)
         app_outputs.append(file)
-        print(f'\t-> output file: {file.filepath}')  # TODO: debug
 
     return app_inputs, app_outputs
 
