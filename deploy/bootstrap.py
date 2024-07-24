@@ -519,10 +519,7 @@ def build_spack_soft_env(config, update_spack, machine, env_type,  # noqa: C901
         shutil.rmtree(build_dir)  # TODO safe rmtree
     except OSError:
         pass
-    try:
-        os.makedirs(build_dir)
-    except FileExistsError:
-        pass
+    os.makedirs(name=build_dir, exist_ok=True)
 
     os.chdir(build_dir)
 
@@ -724,10 +721,7 @@ def write_load_polaris(template_path, activ_path, conda_base, env_type,
                        env_vars, conda_env_only, source_path, without_openmp,
                        polaris_version):
 
-    try:
-        os.makedirs(activ_path)
-    except FileExistsError:
-        pass
+    os.makedirs(name=activ_path, exist_ok=True)
 
     if prefix.endswith(activ_suffix):
         # avoid a redundant activation script name if the suffix is already
@@ -1154,10 +1148,7 @@ def main():  # noqa: C901
 
         except OSError:
             pass
-        try:
-            os.makedirs(build_dir)
-        except FileExistsError:
-            pass
+        os.makedirs(name=build_dir, exist_ok=True)
 
         os.chdir(build_dir)
 
