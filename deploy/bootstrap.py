@@ -88,6 +88,7 @@ def get_compilers_mpis(config, machine, compilers, mpis,  # noqa: C901
                        source_path):
 
     unsupported = parse_unsupported(machine, source_path)
+    # XXX Is there a dynamic way we can get these instead of hard coding?
     if machine == 'conda-linux':
         all_compilers = ['gfortran']
         all_mpis = ['mpich', 'openmpi']
@@ -320,6 +321,7 @@ def build_conda_env(config, env_type, recreate, mpi, conda_mpi, version,
 
     if recreate:
         print(f'creating {env_name}')
+        # TODO we can definitely clean up redundancy here
         if env_type == 'dev':
             # install dev dependencies and polaris itself
             commands = \
@@ -385,6 +387,9 @@ def build_jigsaw(activate_env, conda_base, source_path, env_path, logger):
     print('Building JIGSAW\n')
     # add build tools to deployment env, not polaris env
     jigsaw_build_deps = 'cxx-compiler cmake make'
+    # TODO maybe want to put all this platform.system() stuff in
+    # TODO one centralized location and refer to it from there
+    # TODO to keep things organized and consistent
     if platform.system() == 'Linux':
         jigsaw_build_deps = f'{jigsaw_build_deps} sysroot_linux-64=2.17'
         netcdf_lib = f'{env_path}/lib/libnetcdf.so'
@@ -511,7 +516,7 @@ def build_spack_soft_env(config, update_spack, machine, env_type,  # noqa: C901
     build_dir = f'deploy_tmp/build_soft_{machine}'
 
     try:
-        shutil.rmtree(build_dir)
+        shutil.rmtree(build_dir)  # TODO safe rmtree
     except OSError:
         pass
     try:
@@ -753,6 +758,7 @@ def write_load_polaris(template_path, activ_path, conda_base, env_type,
         template = Template(f.read())
 
     if env_type == 'dev':
+        # XXX modularize call to reinstall polaris in edit mode?
         update_polaris = \
             """
             if [[ -z "${NO_POLARIS_REINSTALL}" && -f "./setup.py" && \\
@@ -864,7 +870,7 @@ def update_permissions(config, env_type, activ_path,  # noqa: C901
     for directory in directories:
         try:
             dir_stat = os.stat(directory)
-        except OSError:
+        except OSError:  # TODO investigate this error lvl too
             continue
 
         perm = dir_stat.st_mode & mask
@@ -906,7 +912,8 @@ def update_permissions(config, env_type, activ_path,  # noqa: C901
 
                 try:
                     dir_stat = os.stat(directory)
-                except OSError:
+                except OSError:  # TODO investigate this error lvl too
+
                     continue
 
                 if dir_stat.st_uid != new_uid:
@@ -933,7 +940,8 @@ def update_permissions(config, env_type, activ_path,  # noqa: C901
                 file_name = os.path.join(root, file_name)
                 try:
                     file_stat = os.stat(file_name)
-                except OSError:
+                except OSError:  # TODO investigate this error lvl too
+
                     continue
 
                 if file_stat.st_uid != new_uid:
@@ -1006,7 +1014,7 @@ def check_supported(library, machine, compiler, mpi, source_path):
 def safe_rmtree(path):
     try:
         shutil.rmtree(path)
-    except OSError:
+    except OSError:  # TODO check if there is a lower lvl error we can use
         pass
 
 
@@ -1081,6 +1089,7 @@ def main():  # noqa: C901
     known_machine = machine is not None
 
     if machine is None and not args.conda_env_only:
+        # TODO match this up with what's in configure script
         if platform.system() == 'Linux':
             machine = 'conda-linux'
         elif platform.system() == 'Darwin':
@@ -1088,6 +1097,7 @@ def main():  # noqa: C901
 
     config = get_config(args.config_file, machine)
 
+    # XXX Make sure this matches with configure script - modularize?
     env_type = config.get('deploy', 'env_type')
     if env_type not in ['dev', 'test_release', 'release']:
         raise ValueError(f'Unexpected env_type: {env_type}')
@@ -1140,7 +1150,8 @@ def main():  # noqa: C901
         build_dir = f'deploy_tmp/build{activ_suffix}'
 
         try:
-            shutil.rmtree(build_dir)
+            shutil.rmtree(build_dir)  # TODO safe rmtree
+
         except OSError:
             pass
         try:
@@ -1171,6 +1182,8 @@ def main():  # noqa: C901
                 args.update_jigsaw)
 
             if local_mache:
+                # XXX Can we modularize this with matching section in configure script?  # noqa: E501
+                # TODO need to update?
                 print('Install local mache\n')
                 commands = f'source {conda_base}/etc/profile.d/conda.sh && ' \
                            f'conda activate {conda_env_name} && ' \
