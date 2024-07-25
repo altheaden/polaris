@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import errno
 import glob
 import grp
 import importlib.resources
@@ -515,10 +516,7 @@ def build_spack_soft_env(config, update_spack, machine, env_type,  # noqa: C901
 
     build_dir = f'deploy_tmp/build_soft_{machine}'
 
-    try:
-        shutil.rmtree(build_dir)  # TODO safe rmtree
-    except OSError:
-        pass
+    safe_rmtree(build_dir)
     os.makedirs(name=build_dir, exist_ok=True)
 
     os.chdir(build_dir)
@@ -1008,8 +1006,13 @@ def check_supported(library, machine, compiler, mpi, source_path):
 def safe_rmtree(path):
     try:
         shutil.rmtree(path)
-    except OSError:  # TODO check if there is a lower lvl error we can use
-        pass
+    except OSError as e:
+        # check if this is a FileNotFoundError
+        if e.errno == errno.ENOENT:
+            pass
+        # if it's another error, inform the user
+        else:
+            raise e
 
 
 def discover_machine(quiet=False):
@@ -1143,11 +1146,7 @@ def main():  # noqa: C901
 
         build_dir = f'deploy_tmp/build{activ_suffix}'
 
-        try:
-            shutil.rmtree(build_dir)  # TODO safe rmtree
-
-        except OSError:
-            pass
+        safe_rmtree(build_dir)
         os.makedirs(name=build_dir, exist_ok=True)
 
         os.chdir(build_dir)
