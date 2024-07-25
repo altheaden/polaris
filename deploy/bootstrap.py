@@ -516,7 +516,7 @@ def build_spack_soft_env(config, update_spack, machine, env_type,  # noqa: C901
 
     build_dir = f'deploy_tmp/build_soft_{machine}'
 
-    safe_rmtree(build_dir)
+    _safe_rmtree(build_dir)
     os.makedirs(name=build_dir, exist_ok=True)
 
     os.chdir(build_dir)
@@ -860,10 +860,7 @@ def update_permissions(config, env_type, activ_path,  # noqa: C901
     # first the base directories that don't seem to be included in
     # os.walk()
     for directory in directories:
-        try:
-            dir_stat = os.stat(directory)
-        except OSError:  # TODO investigate this error lvl too
-            continue
+        dir_stat = _safe_stat(directory)
 
         perm = dir_stat.st_mode & mask
 
@@ -902,11 +899,7 @@ def update_permissions(config, env_type, activ_path,  # noqa: C901
 
                 directory = os.path.join(root, directory)
 
-                try:
-                    dir_stat = os.stat(directory)
-                except OSError:  # TODO investigate this error lvl too
-
-                    continue
+                dir_stat = _safe_stat(directory)
 
                 if dir_stat.st_uid != new_uid:
                     # current user doesn't own this dir so let's move on
@@ -930,11 +923,7 @@ def update_permissions(config, env_type, activ_path,  # noqa: C901
                 except ValueError:
                     pass
                 file_name = os.path.join(root, file_name)
-                try:
-                    file_stat = os.stat(file_name)
-                except OSError:  # TODO investigate this error lvl too
-
-                    continue
+                file_stat = _safe_stat(file_name)
 
                 if file_stat.st_uid != new_uid:
                     # current user doesn't own this file so let's move on
@@ -1003,16 +992,28 @@ def check_supported(library, machine, compiler, mpi, source_path):
                      f'on {machine}')
 
 
-def safe_rmtree(path):
-    try:
-        shutil.rmtree(path)
-    except OSError as e:
-        # check if this is a FileNotFoundError
-        if e.errno == errno.ENOENT:
-            pass
-        # if it's another error, inform the user
-        else:
-            raise e
+def _ignore_missing_file(f):
+    def _wrapper(*args, **kwargs):
+        try:
+            f(*args, **kwargs)
+        except OSError as e:
+            # check if this is a FileNotFoundError
+            if e.errno == errno.ENOENT:
+                pass
+            # if it's another error, inform the user
+            else:
+                raise e
+    return _wrapper
+
+
+@_ignore_missing_file
+def _safe_rmtree(path):
+    shutil.rmtree(path)
+
+
+@_ignore_missing_file
+def _safe_stat(path):
+    os.stat(path)
 
 
 def discover_machine(quiet=False):
@@ -1146,7 +1147,7 @@ def main():  # noqa: C901
 
         build_dir = f'deploy_tmp/build{activ_suffix}'
 
-        safe_rmtree(build_dir)
+        _safe_rmtree(build_dir)
         os.makedirs(name=build_dir, exist_ok=True)
 
         os.chdir(build_dir)
