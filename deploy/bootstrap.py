@@ -43,7 +43,7 @@ def _get_spack_base(options):
         os.path.abspath(os.path.expanduser(spack_base))
 
 
-def get_config(config_file, machine):
+def _get_config(config_file, machine):
     # we can't load polaris so we find the config files
     here = os.path.abspath(os.path.dirname(__file__))
     default_config = os.path.join(here, 'default.cfg')
@@ -73,7 +73,7 @@ def get_config(config_file, machine):
     return config
 
 
-def get_version():
+def _get_version():
     # we can't import polaris because we probably don't have the necessary
     # dependencies, so we get the version by parsing (same approach used in
     # the root setup.py)
@@ -94,7 +94,7 @@ def _get_compilers_mpis(options):  # noqa: C901
     machine = options['machine']
     source_path = options['source_path']
 
-    unsupported = parse_unsupported(machine, source_path)
+    unsupported = _parse_unsupported(machine, source_path)
     # XXX Is there a dynamic way we can get these instead of hard coding?
     if machine == 'conda-linux':
         all_compilers = ['gfortran']
@@ -234,10 +234,10 @@ def _get_env_setup(options, compiler, mpi):
         activ_path = os.path.abspath(os.path.join(conda_base, '..'))
 
     if options['with_albany']:
-        check_supported('albany', machine, compiler, mpi, source_path)
+        _check_supported('albany', machine, compiler, mpi, source_path)
 
     if options['with_petsc']:
-        check_supported('petsc', machine, compiler, mpi, source_path)
+        _check_supported('petsc', machine, compiler, mpi, source_path)
 
     if env_type == 'dev':
         ver = version.parse(polaris_version)
@@ -473,7 +473,7 @@ def _build_jigsaw(options, activate_env, source_path, env_path):
         logger.info(message)
 
 
-def get_env_vars(machine, compiler, mpilib):
+def _get_env_vars(machine, compiler, mpilib):
 
     if machine is None:
         machine = 'None'
@@ -873,15 +873,15 @@ def _check_env(options, script_filename, env_name):
 
     for import_name in imports:
         command = f'{activate} && python -c "import {import_name}"'
-        test_command(command, os.environ, import_name, logger)
+        _test_command(command, os.environ, import_name, logger)
 
     for command_list in commands:
         package = command_list[0]
         command = f'{activate} && {" ".join(command_list)}'
-        test_command(command, os.environ, package, logger)
+        _test_command(command, os.environ, package, logger)
 
 
-def test_command(command, env, package, logger):
+def _test_command(command, env, package, logger):
     try:
         check_call(command, env=env, logger=logger)
     except subprocess.CalledProcessError as e:
@@ -1015,7 +1015,7 @@ def _update_permissions(options, directories):  # noqa: C901
     print('  done.')
 
 
-def parse_unsupported(machine, source_path):
+def _parse_unsupported(machine, source_path):
     with open(os.path.join(source_path, 'deploy', 'unsupported.txt'), 'r') \
             as f:
         content = f.readlines()
@@ -1037,7 +1037,7 @@ def parse_unsupported(machine, source_path):
     return unsupported
 
 
-def check_supported(library, machine, compiler, mpi, source_path):
+def _check_supported(library, machine, compiler, mpi, source_path):
     filename = os.path.join(source_path, 'deploy', f'{library}_supported.txt')
     with open(filename, 'r') as f:
         content = f.readlines()
@@ -1081,7 +1081,7 @@ def _safe_stat(path):
     os.stat(path)
 
 
-def discover_machine(quiet=False):
+def _discover_machine(quiet=False):
     """
     Figure out the machine from the host name
 
@@ -1097,7 +1097,7 @@ def discover_machine(quiet=False):
     """
     machine = mache_discover_machine(quiet=quiet)
     if machine is None:
-        possible_hosts = get_possible_hosts()
+        possible_hosts = _get_possible_hosts()
         hostname = socket.gethostname()
         for possible_machine, hostname_contains in possible_hosts.items():
             if hostname_contains in hostname:
@@ -1106,7 +1106,7 @@ def discover_machine(quiet=False):
     return machine
 
 
-def get_possible_hosts():
+def _get_possible_hosts():
     here = os.path.abspath(os.path.dirname(__file__))
     files = sorted(glob.glob(os.path.join(
         here, '..', 'polaris', 'machines', '*.cfg')))
@@ -1149,7 +1149,7 @@ def main():  # noqa: C901
     machine = None
     if not options['conda_env_only']:
         if options['machine'] is None:
-            machine = discover_machine()
+            machine = _discover_machine()
         else:
             machine = options['machine']
 
@@ -1162,8 +1162,8 @@ def main():  # noqa: C901
         elif platform.system() == 'Darwin':
             machine = 'conda-osx'
 
-    options['config'] = _get_config(options['config_file'], machine)
     options['machine'] = machine
+    options['config'] = _get_config(options['config_file'], machine)
 
     # XXX Make sure this matches with configure script - modularize?
     env_type = options['config'].get('deploy', 'env_type')
@@ -1254,7 +1254,7 @@ def main():  # noqa: C901
 
         spack_script = ''
         if compiler is not None:
-            env_vars = get_env_vars(options['machine'], compiler, mpi)
+            env_vars = _get_env_vars(options['machine'], compiler, mpi)
             if spack_base is not None:
 
                 spack_script, env_vars = _build_spack_libs_env(
