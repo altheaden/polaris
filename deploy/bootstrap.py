@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import errno
 import glob
 import grp
 import importlib.resources
@@ -1057,26 +1056,21 @@ def _check_supported(library, machine, compiler, mpi, source_path):
                      f'on {machine}')
 
 
-def _ignore_missing_file(f):
+def _ignore_file_errors(f):
     def _wrapper(*args, **kwargs):
         try:
             f(*args, **kwargs)
-        except OSError as e:
-            # check if this is a FileNotFoundError
-            if e.errno == errno.ENOENT:
-                pass
-            # if it's another error, inform the user
-            else:
-                raise e
+        except (PermissionError, FileNotFoundError):
+            pass
     return _wrapper
 
 
-@_ignore_missing_file
+@_ignore_file_errors
 def _safe_rmtree(path):
     shutil.rmtree(path)
 
 
-@_ignore_missing_file
+@_ignore_file_errors
 def _safe_stat(path):
     os.stat(path)
 
@@ -1274,7 +1268,7 @@ def main():  # noqa: C901
             if soft_spack_view is not None:
                 env_vars = f'{env_vars}' \
                            f'export PATH="{soft_spack_view}/bin:$PATH"\n'
-            elif known_machine:
+            elif options['known_machine']:
                 raise ValueError('A software compiler or a spack base was not '
                                  'defined so required software was not '
                                  'installed with spack.')
