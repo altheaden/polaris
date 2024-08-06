@@ -178,7 +178,7 @@ def _get_compilers_mpis(options):  # noqa: C901
 
 def _get_env_setup(options, compiler, mpi):
 
-    env_name = options['env_name']
+    conda_env_name = options['conda_env_name']
     env_type = options['env_type']
     source_path = options['source_path']
     config = options['config']
@@ -250,29 +250,30 @@ def _get_env_setup(options, compiler, mpi):
         spack_env = f'polaris_{polaris_version}{env_suffix}'
         conda_env = spack_env
 
-    if env_name is None or env_type != 'dev':
-        env_name = conda_env
+    if conda_env_name is None or env_type != 'dev':
+        conda_env_name = conda_env
 
     # add the compiler and MPI library to the spack env name
     spack_env = f'{spack_env}_{compiler}_{mpi}{lib_suffix}'
     # spack doesn't like dots
     spack_env = spack_env.replace('.', '_')
 
-    env_path = os.path.join(conda_base, 'envs', env_name)
+    conda_env_path = os.path.join(conda_base, 'envs', conda_env_name)
 
     source_activation_scripts = \
         f'source {conda_base}/etc/profile.d/conda.sh'
 
-    activate_env = f'{source_activation_scripts} && conda activate {env_name}'
+    activate_env = \
+        f'{source_activation_scripts} && conda activate {conda_env_name}'
 
-    options['env_name'] = env_name
+    options['conda_env_name'] = conda_env_name
     options['python'] = python
     options['recreate'] = recreate
     options['conda_mpi'] = conda_mpi
     options['activ_suffix'] = activ_suffix
     options['env_suffix'] = env_suffix
     options['activ_path'] = activ_path
-    options['env_path'] = env_path
+    options['conda_env_path'] = conda_env_path
     options['activate_env'] = activate_env
     options['spack_env'] = spack_env
 
@@ -282,7 +283,7 @@ def _build_conda_env(options, mpi, activate_base):
     config = options['config']
     logger = options['logger']
     env_type = options['env_type']
-    env_name = options['env_name']
+    conda_env_name = options['conda_env_name']
     source_path = options['source_path']
     use_local = options['use_local']
     local_conda_build = options['local_conda_build']
@@ -293,7 +294,7 @@ def _build_conda_env(options, mpi, activate_base):
     conda_base = options['conda_base']
     conda_mpi = options['conda_mpi']
     python = options['python']
-    env_path = options['env_path']
+    conda_env_path = options['conda_env_path']
     recreate = options['recreate']
 
     if env_type != 'dev':
@@ -321,7 +322,7 @@ def _build_conda_env(options, mpi, activate_base):
         f'{conda_base}/etc/profile.d/conda.sh')
 
     activate_env = \
-        f'source {base_activation_script} && conda activate {env_name}'
+        f'source {base_activation_script} && conda activate {conda_env_name}'
 
     with open(f'{conda_template_path}/conda-dev-spec.template', 'r') as f:
         template = Template(f.read())
@@ -353,17 +354,17 @@ def _build_conda_env(options, mpi, activate_base):
     else:
         spec_filename = None
 
-    if not os.path.exists(env_path):
+    if not os.path.exists(conda_env_path):
         recreate = True
 
     if recreate:
-        print(f'creating {env_name}')
+        print(f'creating {conda_env_name}')
         # TODO we can definitely clean up redundancy here
         if env_type == 'dev':
             # install dev dependencies and polaris itself
             commands = \
                 f'{activate_base} && ' \
-                f'conda create -y -n {env_name} {channels} ' \
+                f'conda create -y -n {conda_env_name} {channels} ' \
                 f'--file {spec_filename} {packages}'
             check_call(commands, logger=logger)
         else:
@@ -371,24 +372,25 @@ def _build_conda_env(options, mpi, activate_base):
             version_conda = version.replace('-', '')
             packages = f'{packages} "polaris={version_conda}={mpi_prefix}_*"'
             commands = f'{activate_base} && ' \
-                       f'conda create -y -n {env_name} {channels} {packages}'
+                       f'conda create -y -n {conda_env_name}' \
+                       f'{channels} {packages}'
             check_call(commands, logger=logger)
     else:
         if env_type == 'dev':
-            print(f'Updating {env_name}\n')
+            print(f'Updating {conda_env_name}\n')
             # install dev dependencies and polaris itself
             commands = \
                 f'{activate_base} && ' \
-                f'conda install -y -n {env_name} {channels} ' \
+                f'conda install -y -n {conda_env_name} {channels} ' \
                 f'--file {spec_filename} {packages}'
             check_call(commands, logger=logger)
         else:
-            print(f'{env_name} already exists')
+            print(f'{conda_env_name} already exists')
 
     if env_type == 'dev':
         if recreate or update_jigsaw:
             _build_jigsaw(options, activate_env, source_path,
-                          env_path)
+                          conda_env_path)
 
         # install (or reinstall) polaris in edit mode
         print('Installing polaris\n')
@@ -407,7 +409,7 @@ def _build_conda_env(options, mpi, activate_base):
         check_call(commands, logger=logger)
 
 
-def _build_jigsaw(options, activate_env, source_path, env_path):
+def _build_jigsaw(options, activate_env, source_path, conda_env_path):
     logger = options['logger']
     conda_base = options['conda_base']
 
@@ -432,11 +434,11 @@ def _build_jigsaw(options, activate_env, source_path, env_path):
     # TODO to keep things organized and consistent
     if platform.system() == 'Linux':
         jigsaw_build_deps = f'{jigsaw_build_deps} sysroot_linux-64=2.17'
-        netcdf_lib = f'{env_path}/lib/libnetcdf.so'
+        netcdf_lib = f'{conda_env_path}/lib/libnetcdf.so'
     elif platform.system() == 'Darwin':
         jigsaw_build_deps = \
             f'{jigsaw_build_deps} macosx_deployment_target_osx-64=10.13'
-        netcdf_lib = f'{env_path}/lib/libnetcdf.dylib'
+        netcdf_lib = f'{conda_env_path}/lib/libnetcdf.dylib'
     cmake_args = f'-DCMAKE_BUILD_TYPE=Release -DNETCDF_LIBRARY={netcdf_lib}'
 
     commands = \
@@ -769,7 +771,7 @@ def _set_ld_library_path(options, spack_branch_base, spack_env):
 def _write_load_polaris(options, prefix, spack_script, env_vars):
 
     env_type = options['env_type']
-    env_name = options['env_name']
+    conda_env_name = options['conda_env_name']
     source_path = options['source_path']
     machine = options['machine']
     conda_env_only = options['conda_env_only']
@@ -828,7 +830,7 @@ def _write_load_polaris(options, prefix, spack_script, env_vars):
     else:
         update_polaris = ''
 
-    script = template.render(conda_base=conda_base, polaris_env=env_name,
+    script = template.render(conda_base=conda_base, polaris_env=conda_env_name,
                              env_vars=env_vars,
                              spack=spack_script,
                              update_polaris=update_polaris,
@@ -856,9 +858,9 @@ def _write_load_polaris(options, prefix, spack_script, env_vars):
     return script_filename
 
 
-def _check_env(options, script_filename, env_name):
+def _check_env(options, script_filename, conda_env_name):
     logger = options['logger']
-    print(f'Checking the environment {env_name}')
+    print(f'Checking the environment {conda_env_name}')
 
     activate = f'source {script_filename}'
 
@@ -1122,6 +1124,7 @@ def _get_possible_hosts():
 def main():  # noqa: C901
     args = parse_args(bootstrap=True)
     options = vars(args)
+    options['conda_env_name'] = options['env_name']
 
     if options['verbose']:
         options['logger'] = None
@@ -1226,7 +1229,7 @@ def main():  # noqa: C901
             # shared system libraries
             permissions_dirs.append(spack_base)
 
-        conda_env_name = options['env_name']
+        conda_env_name = options['conda_env_name']
         if previous_conda_env != conda_env_name:
             _build_conda_env(options, mpi, activate_base)
 
@@ -1289,8 +1292,8 @@ def main():  # noqa: C901
         script_filename = \
             _write_load_polaris(options, prefix, spack_script, env_vars)
 
-        print(options)  # XXX Dev
-        _check_env(options, script_filename, conda_env_name)
+        if options['check']:
+            _check_env(options, script_filename, conda_env_name)
 
         if env_type == 'release' and not (options['with_albany'] or
                                           options['with_petsc']):
