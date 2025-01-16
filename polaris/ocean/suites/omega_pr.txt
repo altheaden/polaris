@@ -1,3 +1,0 @@
-ocean/planar/manufactured_solution/convergence_both
-ocean/spherical/icos/cosine_bell/decomp
-ocean/spherical/icos/cosine_bell/restart
