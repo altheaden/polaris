@@ -590,9 +590,10 @@ a load script, we automatically install [pre-commit](https://pre-commit.com/),
 a tool that helps to enforce this standard by checking your code each time you
 make a commit. It will tell you about various types of problems it finds.
 Internally, `pre-commit` uses [ruff](https://docs.astral.sh/ruff/) to perform 
-various checks, such as enforcing PEP8 compliance, sorting and formatting 
-imports, and updating any old-style format strings to f-strings. Additionally, 
-`pre-commit` uses [mypy](https://mypy-lang.org/) to check for consistent 
+various checks, such as enforcing PEP8 compliance and sorting and formatting 
+imports. Additionally, `pre-commit` uses 
+[flynt](https://github.com/ikamensh/flynt) to update any old-style format 
+strings to f-strings and [mypy](https://mypy-lang.org/) to check for consistent
 variable types. An example error might be:
 
 ```bash
